@@ -103,6 +103,29 @@ function Backdrop({ state }: { state: SceneState }) {
   )
 }
 
+// Lưới an toàn khi đang xem: nếu FPS trung bình tụt dưới ~40 liên tục thì hạ độ phân giải một nấc nhỏ
+// (tối đa 3 lần). Không bao giờ đổi bậc chất lượng hay dựng lại cảnh.
+function FpsGuard({ active, onSlow }: { active: boolean; onSlow: () => void }) {
+  const acc = useRef({ t: 0, n: 0, steps: 0, startAt: 0 })
+  useFrame((_, dt) => {
+    const a = acc.current
+    if (!active) return
+    if (!a.startAt) a.startAt = performance.now()
+    if (performance.now() - a.startAt < 3500 || a.steps >= 3) return // bỏ qua giai đoạn vừa vào
+    a.t += dt
+    a.n++
+    if (a.n >= 120) {
+      if (a.t / a.n > 0.025) {
+        a.steps++
+        onSlow()
+      }
+      a.t = 0
+      a.n = 0
+    }
+  })
+  return null
+}
+
 interface Props {
   state: SceneState
   tier: Tier
@@ -125,6 +148,8 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
   const [running, setRunning] = useState(false)
   // độ phân giải điều chỉnh liên tục theo FPS thực tế (0.5 … trần của bậc chất lượng)
   const [dpr, setDpr] = useState(settings.dpr)
+  const [msaa, setMsaa] = useState(settings.msaa)
+  const [bloomRes, setBloomRes] = useState(settings.bloomRes)
   useEffect(() => setDpr(settings.dpr), [settings.dpr])
   const group = useRef<Group>(null)
   // trần độ phân giải theo ngân sách điểm ảnh, không bao giờ thấp hơn độ phân giải thật của màn hình
@@ -134,7 +159,7 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
     window.addEventListener('resize', on)
     return () => window.removeEventListener('resize', on)
   }, [])
-  const budget = Math.sqrt(7e6 / (vp.w * vp.h))
+  const budget = Math.sqrt(5e6 / (vp.w * vp.h))
   const cappedDpr = Math.max(1, Math.min(dpr, budget))
   useEffect(() => {
     if (live) setRunning(true)
@@ -211,41 +236,58 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
           state.bloom = 1
           state.camMix = 1
 
-          // Hiệu chỉnh theo máy: đo thời gian thật của một khung hình ở cảnh nặng nhất (hoa nở hết,
-          // mọi trang trí hiện). Nếu quá chậm thì giảm độ phân giải từng bước nhỏ (không bao giờ thấp
-          // hơn độ phân giải thật của màn hình) TRƯỚC khi người xem thấy cảnh, nên không bị giật lúc vào.
-          const ctx = gl.getContext()
+          // Hiệu chỉnh theo máy. Đo thời gian THẬT của một khung hình ở cảnh nặng nhất (hoa nở hết, mọi
+          // trang trí hiện): vẽ xong rồi đọc lại 1 điểm ảnh (readPixels) để buộc GPU phải xong việc, vì
+          // finish() trên Chrome không đảm bảo chờ. Mục tiêu <= 11ms/khung để còn dư chỗ cho trình duyệt.
+          // Hạ từng nấc nhỏ, nấc ít ảnh hưởng hình nhất trước: khử răng cưa -> độ phân giải bloom -> độ phân giải.
+          const glc = gl.getContext()
+          const px = new Uint8Array(4)
           const sample = async (n: number) => {
             let sum = 0
             for (let i = 0; i < n; i++) {
               const t0 = performance.now()
               rs.advance(t0 / 1000, true)
-              ctx.finish()
+              glc.readPixels(0, 0, 1, 1, glc.RGBA, glc.UNSIGNED_BYTE, px)
               sum += performance.now() - t0
               await nextFrame()
             }
             return sum / n
           }
+          const TARGET = 11
           let ms = await sample(8)
-          // Ưu tiên giữ độ nét: chỉ hạ độ phân giải tới 1.5x
-          for (let step = 0; step < 8 && ms > 18 && gl.getPixelRatio() > 1.55; step++) {
-            setDpr(Math.max(1.5, gl.getPixelRatio() * 0.9))
-            await nextFrame()
-            await nextFrame()
+          const k = { msaa: settings.msaa, bloom: settings.bloomRes, dpr: gl.getPixelRatio() }
+          const apply = async () => {
+            setMsaa(k.msaa)
+            setBloomRes(k.bloom)
+            setDpr(k.dpr)
+            for (let i = 0; i < 3; i++) await nextFrame()
+          }
+          const ladder: (() => boolean)[] = [
+            () => k.msaa > 2 && ((k.msaa = 2), true),
+            () => k.bloom > 0.5 && ((k.bloom = 0.5), true),
+            () => k.msaa > 0 && ((k.msaa = 0), true),
+            () => k.dpr > 1.6 && ((k.dpr = Math.max(1.5, k.dpr * 0.88)), true),
+            () => k.bloom > 0.3 && ((k.bloom = 0.3), true),
+            () => k.dpr > 1.3 && ((k.dpr = Math.max(1.25, k.dpr * 0.88)), true),
+          ]
+          let guard = 0
+          for (const step of ladder) {
+            if (ms <= TARGET) break
+            if (!step()) continue
+            await apply()
             ms = await sample(6)
-            onProgress(0.8 + 0.06 * ((step + 1) / 8))
+            onProgress(0.8 + 0.08 * (++guard / ladder.length))
           }
           // Vẫn chậm: hạ độ nặng của cảnh (bậc chất lượng) rồi khởi động lại ở độ nét tối đa của bậc mới
-          if (ms > 18 && tier !== 'lite' && !debug.tier) {
+          if (ms > TARGET && tier !== 'lite' && !debug.tier) {
             Object.assign(state, snap)
-            onDowngrade(ms)
+            onDowngrade(ms * 1.6)
             return
           }
           // Bậc thấp nhất: đành chấp nhận hạ độ phân giải xuống 1x
-          for (let step = 0; step < 8 && ms > 18 && gl.getPixelRatio() > 1.01; step++) {
-            setDpr(Math.max(1, gl.getPixelRatio() * 0.9))
-            await nextFrame()
-            await nextFrame()
+          for (let step = 0; step < 8 && ms > TARGET && k.dpr > 1.01; step++) {
+            k.dpr = Math.max(1, k.dpr * 0.88)
+            await apply()
             ms = await sample(6)
           }
           onProgress(0.9)
@@ -271,7 +313,8 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
         {settings.streams > 0 && <SpiralStreams state={state} perStrand={settings.streams} />}
         {settings.bokeh > 0 && <BokehField state={state} count={settings.bokeh} />}
         {settings.rays && <GodRays state={state} />}
-        {settings.post && debug.post && <PostProcessing resolution={settings.bloomRes} msaa={settings.msaa} />}
+        <FpsGuard active={ready} onSlow={() => setDpr((d) => Math.max(1.25, d * 0.88))} />
+        {settings.post && debug.post && <PostProcessing resolution={bloomRes} msaa={msaa} />}
       </>
     </Canvas>
   )

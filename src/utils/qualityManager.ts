@@ -17,7 +17,7 @@ export interface TierSettings {
 }
 
 export const TIERS: Record<Tier, TierSettings> = {
-  high: { nu: 36, nv: 34, dpr: 2.5, particles: 300, petals: 24, streams: 90, bokeh: 20, rays: true, sparkles: 60, post: true, bloomRes: 1, msaa: 4, morphKeys: 13 },
+  high: { nu: 36, nv: 34, dpr: 2.5, particles: 300, petals: 24, streams: 90, bokeh: 20, rays: true, sparkles: 60, post: true, bloomRes: 0.5, msaa: 4, morphKeys: 13 },
   medium: { nu: 26, nv: 22, dpr: 2, particles: 160, petals: 14, streams: 56, bokeh: 12, rays: true, sparkles: 34, post: true, bloomRes: 0.6, msaa: 2, morphKeys: 11 },
   lite: { nu: 12, nv: 8, dpr: 1, particles: 36, petals: 0, streams: 0, bokeh: 0, rays: false, sparkles: 0, post: false, bloomRes: 0.25, msaa: 0, morphKeys: 7 },
   low: { nu: 18, nv: 14, dpr: 1.5, particles: 80, petals: 6, streams: 28, bokeh: 6, rays: false, sparkles: 14, post: false, bloomRes: 0.25, msaa: 0, morphKeys: 9 },
