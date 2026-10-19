@@ -76,7 +76,7 @@ export default function Rose({ state, tier, clay, debugBloom, groupRef, onTap }:
     const t = s.clock.elapsedTime
     // chuyển động nhẹ khi nghỉ: xoay chậm + lơ lửng
     if (!reduced) {
-      g.rotation.y += dt * 0.07 * state.idle
+      g.rotation.y += dt * 0.16 * state.idle
       g.position.y = Math.sin(t * 0.6) * 0.04 * state.idle
     }
     glass.uniforms.uReveal.value = debugBloom !== null ? 1 : state.reveal

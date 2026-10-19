@@ -74,7 +74,7 @@ export default function CameraRig({ state, initialView, initialPhi }: { state: S
     // Sau khi nở xong và khi không ai chạm, máy quay tự trôi nhẹ quanh hoa để cảnh không bao giờ đứng yên
     if (!reducedMotion && !r.dragging && state.bloom > 0.95 && initialView === null) {
       const idle = Math.min(1, Math.max(0, (performance.now() - r.lastTouch - 2500) / 2500))
-      r.theta += dt * 0.055 * idle
+      r.theta += dt * 0.085 * idle
       r.phi = Math.min(PHI_MAX, Math.max(PHI_MIN, r.phi + Math.sin(performance.now() / 4200) * dt * 0.02 * idle))
     }
 

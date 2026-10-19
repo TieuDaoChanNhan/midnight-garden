@@ -30,6 +30,7 @@ export default function Experience() {
   const [progress, setProgress] = useState(0)
   const [manualImg, setManualImg] = useState<string | null>(null)
   const handles = useRef<SceneHandles | null>(null)
+  const tapReady = useRef(false)
   const phaseRef = useRef(phase)
   phaseRef.current = phase
   const tl = useRef<gsap.core.Timeline | null>(null)
@@ -55,11 +56,13 @@ export default function Experience() {
         Object.assign(state, { reveal: 1, light: 0.3, warm: 0.5, bloom: debug.bloom, camMix: debug.bloom, textShift: 1 })
         return
       }
-      gsap.to(state, { reveal: 1, duration: 2.2 * speed, ease: 'power2.out' })
+      gsap.to(state, { reveal: 1, duration: 1.3 * speed, ease: 'power2.out' })
       gsap.to(state, { light: 0.16, duration: 3.6 * speed, ease: 'sine.inOut' })
-      gsap.delayedCall(3.1 * speed, () => {
+      gsap.delayedCall(1.2 * speed, () => {
         if (phaseRef.current === 'emerge') {
           setPhaseBoth('invite')
+          // chỉ cho bấm sau khi chữ mời đã hiện xong (tránh bấm lúc chữ chưa kịp hiện)
+          window.setTimeout(() => (tapReady.current = true), 1100)
           gsap.to(state, { textShift: 1, duration: 1.8, ease: 'power2.inOut' })
         }
       })
@@ -88,6 +91,7 @@ export default function Experience() {
 
   const bloom = useCallback(() => {
     if (phaseRef.current === 'bloom' || phaseRef.current === 'reveal') return
+    if (!tapReady.current) return // chữ mời chưa hiện xong
     gsap.killTweensOf(state, 'reveal,light,textShift')
     gsap.to(state, { reveal: 1, duration: 0.8 })
     setPhaseBoth('bloom')

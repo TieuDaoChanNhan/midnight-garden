@@ -62,7 +62,7 @@ export default function Ornaments({ state, count }: { state: SceneState; count: 
     const items = Array.from({ length: count }, (_, i) => ({
       radius: 1.9 + rnd() * 1.7,
       angle: rnd() * Math.PI * 2,
-      speed: (0.04 + rnd() * 0.07) * (rnd() < 0.5 ? -1 : 1),
+      speed: (0.07 + rnd() * 0.12) * (rnd() < 0.5 ? -1 : 1),
       height: (rnd() - 0.35) * 2.6,
       bob: rnd() * 6.28,
       tumble: [rnd() * 6.28, rnd() * 6.28, rnd() * 6.28] as [number, number, number],
@@ -137,7 +137,7 @@ export default function Ornaments({ state, count }: { state: SceneState; count: 
       m.instanceMatrix.needsUpdate = true
     }
     if (rings.current) {
-      rings.current.rotation.y = t * 0.05 * calm
+      rings.current.rotation.y = t * 0.11 * calm
       ringMat.opacity = 0.13 * show
       ringMat2.opacity = 0.09 * show
     }

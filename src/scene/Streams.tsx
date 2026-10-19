@@ -56,8 +56,8 @@ export function SpiralStreams({ state, perStrand }: { state: SceneState; perStra
     for (let k = 0; k < STRANDS; k++) {
       for (let j = 0; j < perStrand; j++) {
         const i = k * perStrand + j
-        const u = (j / perStrand + t * 0.045 + k * 0.31) % 1
-        const ang = k * 2.094 + u * 6.2 + t * 0.28
+        const u = (j / perStrand + t * 0.07 + k * 0.31) % 1
+        const ang = k * 2.094 + u * 6.2 + t * 0.5
         const r = 0.6 + 1.55 * Math.pow(u, 0.8)
         pos[i * 3] = Math.cos(ang) * r
         pos[i * 3 + 1] = POOL_Y + 0.25 + u * 3.9

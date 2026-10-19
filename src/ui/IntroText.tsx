@@ -3,7 +3,7 @@ import { content } from '../config/content'
 export default function IntroText({ show, onBloom }: { show: boolean; onBloom: () => void }) {
   return (
     <div
-      className={`pointer-events-none flex flex-col items-center text-center transition-all duration-[1400ms] ease-out ${show ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}
+      className={`pointer-events-none flex flex-col items-center text-center transition-all duration-[700ms] ease-out ${show ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'}`}
       aria-hidden={!show}
     >
       <p className="font-serif text-[clamp(2.2rem,8vw,3.4rem)] italic leading-none tracking-wide text-[#FFF1E5]">{content.intro.line1}</p>
