@@ -114,6 +114,8 @@ interface Props {
 
 export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline, ready, onProgress }: Props) {
   const settings = TIERS[tier]
+  // chỉ chạy vòng lặp render sau khi khởi động xong (trong lúc tải, thanh tiến trình được mượt)
+  const [running, setRunning] = useState(false)
   // độ phân giải điều chỉnh liên tục theo FPS thực tế (0.5 … trần của bậc chất lượng)
   const [dpr, setDpr] = useState(settings.dpr)
   useEffect(() => setDpr(settings.dpr), [settings.dpr])
@@ -123,15 +125,26 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
   useEffect(() => {
     if (ready) readyAt.current = performance.now()
   }, [ready])
+  // trần độ phân giải theo ngân sách điểm ảnh, không bao giờ thấp hơn độ phân giải thật của màn hình
+  const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
+  useEffect(() => {
+    const on = () => setVp({ w: window.innerWidth, h: window.innerHeight })
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
+  const budget = Math.sqrt(4.4e6 / (vp.w * vp.h))
+  const cappedDpr = Math.max(1, Math.min(dpr, budget))
   const settled = () => readyAt.current > 0 && performance.now() - readyAt.current > 4000
 
   return (
     <Canvas
-      dpr={dpr}
+      dpr={[1, cappedDpr]}
+      frameloop={running ? 'always' : 'never'}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0.8, 6], fov: 30, near: 0.1, far: 60 }}
       style={{ touchAction: 'none' }}
-      onCreated={({ gl, scene, camera }) => {
+      onCreated={(rs) => {
+        const { gl, scene, camera } = rs
         gl.toneMapping = ACESFilmicToneMapping
         gl.toneMappingExposure = 1.05
         gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
@@ -159,13 +172,24 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
             } catch {
               /* không sao: shader sẽ biên dịch ở frame đầu tiên */
             }
-            onProgress(0.35 + 0.5 * ((i + 1) / targets.length))
+            onProgress(0.35 + 0.25 * ((i + 1) / targets.length))
           }
-          // vài frame khởi động để hậu kỳ biên dịch nốt
+          // Khởi động nóng: vẽ thử toàn bộ cảnh ở trạng thái nở hết (cánh bay, hạt, hậu kỳ) rồi trả về như cũ,
+          // để mọi shader, buffer, texture đã được tải lên GPU trước khi người xem thấy gì.
+          const snap = { ...state }
+          Object.assign(state, { reveal: 1, bloom: 1, light: 1, warm: 1, camMix: 1, textShift: 1 })
           for (let i = 0; i < 4; i++) {
+            rs.advance(performance.now() / 1000, true)
             await nextFrame()
-            onProgress(0.85 + 0.15 * ((i + 1) / 4))
+            onProgress(0.6 + 0.3 * ((i + 1) / 4))
           }
+          Object.assign(state, snap)
+          for (let i = 0; i < 3; i++) {
+            rs.advance(performance.now() / 1000, true)
+            await nextFrame()
+            onProgress(0.9 + 0.1 * ((i + 1) / 3))
+          }
+          setRunning(true)
           if (group.current) onReady({ gl, scene, camera, group: group.current })
         })()
       }}

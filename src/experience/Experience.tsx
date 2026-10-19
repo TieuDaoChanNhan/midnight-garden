@@ -34,11 +34,16 @@ export default function Experience() {
   }
 
   // ---- Phase A: hoa hiện ra từ bóng tối ----
-  const onReady = useCallback(
-    (h: SceneHandles) => {
-      handles.current = h
+  // Cảnh đã được biên dịch + khởi động nóng xong: chờ thanh tiến trình chạy đủ 100% rồi mới bắt đầu.
+  const onReady = useCallback((h: SceneHandles) => {
+    handles.current = h
+    setProgress(1)
+    if (import.meta.env.DEV) (window as unknown as { __handles: SceneHandles }).__handles = h
+  }, [])
+
+  const start = useCallback(
+    () => {
       setBooted(true)
-      if (import.meta.env.DEV) (window as unknown as { __handles: SceneHandles }).__handles = h
       if (debug.bloom !== null) {
         Object.assign(state, { reveal: 1, light: 0.3, warm: 0.5, bloom: debug.bloom, camMix: debug.bloom, textShift: 1 })
         return
@@ -121,7 +126,7 @@ export default function Experience() {
     <div className="fixed inset-0 overflow-hidden bg-[#080B18]">
       <RoseScene state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} ready={booted} onProgress={setProgress} />
 
-      <LoadingBar progress={progress} done={booted} />
+      <LoadingBar progress={progress} done={booted} onFilled={start} />
 
       {/* nút ẩn cho bàn phím / trình đọc màn hình */}
       <button type="button" onClick={bloom} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:text-[#F2B7D5]">
