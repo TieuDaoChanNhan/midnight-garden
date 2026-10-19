@@ -107,6 +107,7 @@ export default function Rose({ state, tier, clay, debugBloom, groupRef, onTap }:
         sorter={sorter}
         debugBloom={debugBloom}
         coreMat={coreMat}
+        keys={tier.morphKeys}
       />
       {BRANCHES.map((b, i) => (
         <RoseBloom
@@ -122,6 +123,7 @@ export default function Rose({ state, tier, clay, debugBloom, groupRef, onTap }:
           state={state}
           sorter={sorter}
           debugBloom={debugBloom}
+          keys={tier.morphKeys}
         />
       ))}
       <mesh ref={stemRef} geometry={stemGeo} material={mat} frustumCulled={false} />

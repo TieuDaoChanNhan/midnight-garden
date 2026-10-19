@@ -31,13 +31,14 @@ interface Props {
   sorter: Sorter
   debugBloom: number | null
   coreMat?: MeshBasicMaterial
+  keys: number // số tư thế nở được tính sẵn
 }
 
 const Y_AXIS = new Vector3(0, 1, 0)
 const tmpQ = new Quaternion()
 const tmpAxis = new Vector3()
 
-export default function RoseBloom({ params, nu, nv, position, quaternion, scale, material, bloomMap, state, sorter, debugBloom, coreMat }: Props) {
+export default function RoseBloom({ params, nu, nv, position, quaternion, scale, material, bloomMap, state, sorter, debugBloom, coreMat, keys }: Props) {
   const reduced = useReducedMotion()
   const group = useRef<Group>(null)
   const meshes = useRef<Mesh[]>([])
@@ -70,13 +71,22 @@ export default function RoseBloom({ params, nu, nv, position, quaternion, scale,
     if (coreMat) own.push({ group: g, centroid: new Vector3(0, 0.32, 0), dist: 0, apply: (r) => glow.current && (glow.current.renderOrder = r) })
     sorter.items.push(...own)
     sorter.dirty = true
+    // tính sẵn các tư thế nở (một lần, lúc tải) rồi gắn morph target cho từng mesh
+    let alive = true
+    void ctl.bake(keys).then(() => {
+      if (alive) {
+        ctl.bind(meshes.current)
+        sorter.dirty = true
+      }
+    })
     return () => {
+      alive = false
       sorter.items = sorter.items.filter((it) => !own.includes(it))
       ctl.dispose()
       geo.receptacle.dispose()
       geo.glow.dispose()
     }
-  }, [ctl, sorter, coreMat, geo])
+  }, [ctl, sorter, coreMat, geo, keys])
 
   useFrame((s) => {
     const t = s.clock.elapsedTime

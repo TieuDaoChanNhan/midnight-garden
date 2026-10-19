@@ -6,6 +6,7 @@ import LightingRig from './LightingRig'
 import CameraRig from './CameraRig'
 import ParticleField from './ParticleField'
 import Ornaments from './Ornaments'
+import { bakery } from '../rose/BloomController'
 import Base from './Base'
 import { BokehField, GodRays, SpiralStreams } from './Streams'
 import PostProcessing from './PostProcessing'
@@ -116,6 +117,10 @@ interface Props {
 
 export default function RoseScene({ state, tier, debug, onReady, onTap, ready, live, onProgress, onDowngrade }: Props) {
   const settings = TIERS[tier]
+  useMemo(() => {
+    bakery.total = 0
+    bakery.done = 0
+  }, [])
   // chỉ chạy vòng lặp render sau khi khởi động xong (trong lúc tải, thanh tiến trình được mượt)
   const [running, setRunning] = useState(false)
   // độ phân giải điều chỉnh liên tục theo FPS thực tế (0.5 … trần của bậc chất lượng)
@@ -152,8 +157,25 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
         const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
         void (async () => {
           onProgress(0.05)
+          // nạp sẵn phông chữ tiếng Việt để lúc chữ hiện ra không bị nhảy / đổi kiểu
+          try {
+            await Promise.all([
+              document.fonts.load('italic 500 40px "Cormorant Garamond"', 'ăâđêôơư ếềểễệ ởờỡợ ữửứự apn'),
+              document.fonts.load('300 16px "Be Vietnam Pro"', 'ăâđêôơư ếềểễệ ởờỡợ ữửứự'),
+              document.fonts.load('400 16px "Be Vietnam Pro"', 'ăâđêôơư'),
+            ])
+            await document.fonts.ready
+          } catch {
+            /* không sao */
+          }
           for (let i = 0; i < 180 && !group.current; i++) await nextFrame()
           onProgress(0.15)
+          // chờ tính xong các tư thế nở của mọi cánh hoa (việc nặng được làm một lần ở đây, không phải lúc nở)
+          while (bakery.done < bakery.total) {
+            onProgress(0.15 + 0.15 * (bakery.done / Math.max(1, bakery.total)))
+            await new Promise((r) => setTimeout(r, 30))
+          }
+          onProgress(0.3)
           for (let i = 0; i < 100 && !scene.environment; i++) await new Promise((r) => setTimeout(r, 50))
           onProgress(0.35)
           // biên dịch từng loại vật liệu một để thanh tiến trình phản ánh đúng thực tế
@@ -177,11 +199,17 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
           // để mọi shader, buffer, texture đã được tải lên GPU trước khi người xem thấy gì.
           const snap = { ...state }
           Object.assign(state, { reveal: 1, bloom: 1, light: 1, warm: 1, camMix: 1, textShift: 1 })
-          for (let i = 0; i < 6; i++) {
+          // chạy thử đúng quá trình nở (nhiều mức nở khác nhau) để GPU/JS đã quen đường đi trước khi người xem bấm
+          const sweep = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1, 0.6, 0.3, 1]
+          for (let i = 0; i < sweep.length; i++) {
+            state.bloom = sweep[i]
+            state.camMix = sweep[i]
             rs.advance(performance.now() / 1000, true)
             await nextFrame()
-            onProgress(0.6 + 0.2 * ((i + 1) / 6))
+            onProgress(0.6 + 0.2 * ((i + 1) / sweep.length))
           }
+          state.bloom = 1
+          state.camMix = 1
 
           // Hiệu chỉnh theo máy: đo thời gian thật của một khung hình ở cảnh nặng nhất (hoa nở hết,
           // mọi trang trí hiện). Nếu quá chậm thì giảm độ phân giải từng bước nhỏ (không bao giờ thấp

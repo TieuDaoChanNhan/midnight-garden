@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Color, Vector3 } from 'three'
+import { BufferAttribute, BufferGeometry, Color, Vector3, type Mesh } from 'three'
 import type { PetalSpec } from './RoseParameters'
 import { palette } from '../config/theme'
 
@@ -46,6 +46,8 @@ export class PetalSurface {
   private readonly cosA: number
   private readonly sinA: number
   private lastLocal = -1
+  private morphK = 0
+  private keyCentroids: Vector3[] = []
 
   constructor(
     readonly spec: PetalSpec,
@@ -214,6 +216,46 @@ export class PetalSurface {
     const attr = this.geometry.getAttribute('position') as BufferAttribute
     attr.needsUpdate = true
     this.geometry.computeVertexNormals()
+  }
+
+  /**
+   * Tính sẵn K tư thế nở (0 → 1) và gắn thành morph target. Từ đó trở đi việc nở chỉ là pha trộn
+   * hai tư thế gần nhất ngay trên GPU, CPU không phải dựng lại hình học mỗi khung hình.
+   */
+  bake(K: number) {
+    const posT: BufferAttribute[] = []
+    const nrmT: BufferAttribute[] = []
+    this.keyCentroids = []
+    const nrm = this.geometry.getAttribute('normal') as BufferAttribute
+    for (let k = 0; k < K; k++) {
+      this.update(k / (K - 1), true)
+      posT.push(new BufferAttribute(Float32Array.from(this.pos), 3))
+      nrmT.push(new BufferAttribute(Float32Array.from(nrm.array as Float32Array), 3))
+      this.keyCentroids.push(this.centroid.clone())
+    }
+    this.geometry.morphAttributes.position = posT
+    this.geometry.morphAttributes.normal = nrmT
+    this.geometry.morphTargetsRelative = false
+    this.update(0, true)
+    this.morphK = K
+  }
+
+  get baked() {
+    return this.morphK > 0
+  }
+
+  /** pb: tiến độ nở cục bộ 0..1. Đặt trọng số cho hai morph target gần nhất. */
+  setMorph(pb: number, mesh: Mesh) {
+    const inf = mesh.morphTargetInfluences
+    if (!inf || !this.morphK) return
+    const K = this.morphK
+    const x = Math.min(1, Math.max(0, pb)) * (K - 1)
+    const i = Math.min(K - 2, Math.floor(x))
+    const f = x - i
+    inf.fill(0)
+    inf[i] = 1 - f
+    inf[i + 1] = f
+    this.centroid.lerpVectors(this.keyCentroids[i], this.keyCentroids[i + 1], f)
   }
 
   dispose() {
