@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
 import { Vector3, ACESFilmicToneMapping, AdditiveBlending, CanvasTexture, Group, Scene, SRGBColorSpace, Sprite, WebGLRenderer, type Camera } from 'three'
@@ -112,11 +112,14 @@ interface Props {
 
 export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline }: Props) {
   const settings = TIERS[tier]
+  // độ phân giải điều chỉnh liên tục theo FPS thực tế (0.5 … trần của bậc chất lượng)
+  const [dpr, setDpr] = useState(settings.dpr)
+  useEffect(() => setDpr(settings.dpr), [settings.dpr])
   const group = useRef<Group>(null)
 
   return (
     <Canvas
-      dpr={[1, settings.dpr]}
+      dpr={dpr}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0.8, 6], fov: 30, near: 0.1, far: 60 }}
       style={{ touchAction: 'none' }}
@@ -130,7 +133,12 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         })
       }}
     >
-      <PerformanceMonitor onDecline={onDecline} flipflops={2} onFallback={onDecline}>
+      <PerformanceMonitor
+        onChange={({ factor }) => setDpr(Math.max(0.6, Math.round(settings.dpr * (0.55 + 0.45 * factor) * 20) / 20))}
+        onDecline={onDecline}
+        flipflops={3}
+        onFallback={onDecline}
+      >
         <Backdrop state={state} />
         <LightingRig state={state} />
         <CameraRig state={state} initialView={debug.view} initialPhi={debug.phi} />

@@ -11,9 +11,9 @@ export interface TierSettings {
 }
 
 export const TIERS: Record<Tier, TierSettings> = {
-  high: { nu: 28, nv: 26, dpr: 2, particles: 240, petals: 18, post: true, bloomRes: 1 },
-  medium: { nu: 20, nv: 16, dpr: 1.6, particles: 140, petals: 12, post: true, bloomRes: 0.5 },
-  low: { nu: 14, nv: 10, dpr: 1.25, particles: 70, petals: 6, post: false, bloomRes: 0.25 },
+  high: { nu: 24, nv: 20, dpr: 1.5, particles: 240, petals: 18, post: true, bloomRes: 1 },
+  medium: { nu: 18, nv: 14, dpr: 1.25, particles: 140, petals: 12, post: true, bloomRes: 0.35 },
+  low: { nu: 12, nv: 9, dpr: 1, particles: 70, petals: 6, post: false, bloomRes: 0.25 },
 }
 
 // Đoán ban đầu một cách thận trọng; sau đó PerformanceMonitor sẽ hạ bậc nếu khung hình tụt.
@@ -24,7 +24,7 @@ export function detectInitialTier(): Tier {
   const cores = navigator.hardwareConcurrency ?? 4
   if (mem <= 2 || cores <= 3) return 'low'
   if (coarse || mem <= 4 || cores <= 6) return 'medium'
-  return 'high'
+  return 'medium' // bắt đầu thận trọng; PerformanceMonitor sẽ điều chỉnh độ phân giải
 }
 
 export const lowerTier = (t: Tier): Tier => (t === 'high' ? 'medium' : 'low')

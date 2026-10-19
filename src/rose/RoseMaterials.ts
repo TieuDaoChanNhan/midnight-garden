@@ -1,4 +1,4 @@
-import { AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial } from 'three'
+import { AdditiveBlending, DoubleSide, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial } from 'three'
 import { palette } from '../config/theme'
 
 // Vật liệu "thủy tinh ngọc trai": không dùng transmission thật (cho cảm giác xếp lớp rõ,
@@ -19,18 +19,14 @@ export function createGlassMaterial(): { material: MeshPhysicalMaterial; uniform
     transparent: true,
     side: DoubleSide,
     depthWrite: false,
-    roughness: 0.12,
+    forceSinglePass: true, // vật liệu trong suốt hai mặt mặc định vẽ 2 lượt; ép 1 lượt để giảm một nửa chi phí
+    roughness: 0.1,
     metalness: 0,
-    clearcoat: 1,
-    clearcoatRoughness: 0.1,
     ior: 1.45,
     specularIntensity: 1.25,
     iridescence: 0.8,
     iridescenceIOR: 1.35,
     iridescenceThicknessRange: [200, 620],
-    sheen: 0.4,
-    sheenColor: new Color(palette.lavender),
-    sheenRoughness: 0.45,
     envMapIntensity: 1.8,
   })
   material.customProgramCacheKey = () => 'rose-glass'
