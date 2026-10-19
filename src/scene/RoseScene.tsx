@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { PerformanceMonitor } from '@react-three/drei'
-import { Vector3, ACESFilmicToneMapping, AdditiveBlending, CanvasTexture, Group, Scene, SRGBColorSpace, Sprite, WebGLRenderer, type Camera } from 'three'
+import { Vector3, ACESFilmicToneMapping, type Material, type Mesh, type Object3D, AdditiveBlending, CanvasTexture, Group, Scene, SRGBColorSpace, Sprite, WebGLRenderer, type Camera } from 'three'
 import Rose from '../rose/Rose'
 import LightingRig from './LightingRig'
 import CameraRig from './CameraRig'
@@ -108,14 +108,22 @@ interface Props {
   onReady: (h: SceneHandles) => void
   onTap: () => void
   onDecline: () => void
+  ready: boolean
+  onProgress: (p: number) => void
 }
 
-export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline }: Props) {
+export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline, ready, onProgress }: Props) {
   const settings = TIERS[tier]
   // độ phân giải điều chỉnh liên tục theo FPS thực tế (0.5 … trần của bậc chất lượng)
   const [dpr, setDpr] = useState(settings.dpr)
   useEffect(() => setDpr(settings.dpr), [settings.dpr])
   const group = useRef<Group>(null)
+  // bỏ qua đo FPS trong lúc khởi động (jank do biên dịch shader không phải do máy yếu)
+  const readyAt = useRef(0)
+  useEffect(() => {
+    if (ready) readyAt.current = performance.now()
+  }, [ready])
+  const settled = () => readyAt.current > 0 && performance.now() - readyAt.current > 4000
 
   return (
     <Canvas
@@ -127,17 +135,46 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         gl.toneMapping = ACESFilmicToneMapping
         gl.toneMappingExposure = 1.05
         gl.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault())
-        // đợi group gắn xong
-        requestAnimationFrame(() => {
+        // Khởi động êm: đợi cảnh + môi trường phản chiếu sẵn sàng, biên dịch trước mọi shader
+        // (không đơ main thread), rồi mới báo sẵn sàng. Trong lúc đó màn hình còn tối.
+        const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()))
+        void (async () => {
+          onProgress(0.05)
+          for (let i = 0; i < 180 && !group.current; i++) await nextFrame()
+          onProgress(0.15)
+          for (let i = 0; i < 100 && !scene.environment; i++) await new Promise((r) => setTimeout(r, 50))
+          onProgress(0.35)
+          // biên dịch từng loại vật liệu một để thanh tiến trình phản ánh đúng thực tế
+          const seen = new Set<string>()
+          const targets: Object3D[] = []
+          scene.traverse((o) => {
+            const m = (o as Mesh).material as Material | Material[] | undefined
+            if (!m || Array.isArray(m) || seen.has(m.uuid)) return
+            seen.add(m.uuid)
+            targets.push(o)
+          })
+          for (let i = 0; i < targets.length; i++) {
+            try {
+              await gl.compileAsync(targets[i], camera, scene)
+            } catch {
+              /* không sao: shader sẽ biên dịch ở frame đầu tiên */
+            }
+            onProgress(0.35 + 0.5 * ((i + 1) / targets.length))
+          }
+          // vài frame khởi động để hậu kỳ biên dịch nốt
+          for (let i = 0; i < 4; i++) {
+            await nextFrame()
+            onProgress(0.85 + 0.15 * ((i + 1) / 4))
+          }
           if (group.current) onReady({ gl, scene, camera, group: group.current })
-        })
+        })()
       }}
     >
       <PerformanceMonitor
-        onChange={({ factor }) => setDpr(Math.max(0.6, Math.round(settings.dpr * (0.55 + 0.45 * factor) * 20) / 20))}
-        onDecline={onDecline}
+        onChange={({ factor }) => settled() && setDpr(Math.max(1.25, Math.round(settings.dpr * (0.8 + 0.2 * factor) * 20) / 20))}
+        onDecline={() => settled() && onDecline()}
         flipflops={3}
-        onFallback={onDecline}
+        onFallback={() => settled() && onDecline()}
       >
         <Backdrop state={state} />
         <LightingRig state={state} />

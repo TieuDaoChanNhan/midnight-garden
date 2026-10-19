@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import RoseScene, { type SceneHandles } from '../scene/RoseScene'
 import IntroText from '../ui/IntroText'
 import Greeting from '../ui/Greeting'
+import LoadingBar from '../ui/LoadingBar'
 import ExperienceControls from '../ui/ExperienceControls'
 import { content } from '../config/content'
 import { createSceneState, readDebugFlags, type Phase } from './ExperienceState'
@@ -19,6 +20,8 @@ export default function Experience() {
   const [phase, setPhase] = useState<Phase>(debug.bloom !== null ? 'reveal' : 'emerge')
   const [tier, setTier] = useState<Tier>(() => debug.tier ?? detectInitialTier())
   const [saveState, setSaveState] = useState<'idle' | 'working' | 'done'>('idle')
+  const [booted, setBooted] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [manualImg, setManualImg] = useState<string | null>(null)
   const handles = useRef<SceneHandles | null>(null)
   const phaseRef = useRef(phase)
@@ -34,6 +37,7 @@ export default function Experience() {
   const onReady = useCallback(
     (h: SceneHandles) => {
       handles.current = h
+      setBooted(true)
       if (import.meta.env.DEV) (window as unknown as { __handles: SceneHandles }).__handles = h
       if (debug.bloom !== null) {
         Object.assign(state, { reveal: 1, light: 0.3, warm: 0.5, bloom: debug.bloom, camMix: debug.bloom, textShift: 1 })
@@ -115,7 +119,9 @@ export default function Experience() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#080B18]">
-      <RoseScene state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} />
+      <RoseScene state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} ready={booted} onProgress={setProgress} />
+
+      <LoadingBar progress={progress} done={booted} />
 
       {/* nút ẩn cho bàn phím / trình đọc màn hình */}
       <button type="button" onClick={bloom} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:text-[#F2B7D5]">

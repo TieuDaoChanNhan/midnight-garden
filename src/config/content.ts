@@ -17,6 +17,10 @@ export const content = {
     closing: 'hoa thật rồi sẽ héo, còn bông này thì không hehe.',
   },
 
+  loading: {
+    label: 'đang chuẩn bị bông hoa...',
+  },
+
   controls: {
     save: 'lưu bông hoa này',
     saving: 'đang gói lại...',

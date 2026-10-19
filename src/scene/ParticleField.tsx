@@ -14,6 +14,7 @@ const vert = /* glsl */ `
   attribute vec3 aColor;
   uniform float uPx;
   varying float vAlpha;
+  varying vec3 vColor;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;

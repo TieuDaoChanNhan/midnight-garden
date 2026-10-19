@@ -19,6 +19,8 @@ export function createGlassMaterial(): { material: MeshPhysicalMaterial; uniform
     transparent: true,
     side: DoubleSide,
     depthWrite: false,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.12,
     forceSinglePass: true, // vật liệu trong suốt hai mặt mặc định vẽ 2 lượt; ép 1 lượt để giảm một nửa chi phí
     roughness: 0.1,
     metalness: 0,
