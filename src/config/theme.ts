@@ -8,5 +8,6 @@ export const palette = {
   pearlWhite: '#FFF1E5',
   roseDeep: '#B8467F',
   peach: '#FFD2AE',
+  mint: '#BDE8DA',
   gold: '#FFE0A3',
 }

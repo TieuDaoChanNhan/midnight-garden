@@ -41,7 +41,7 @@ export default function LoadingBar({ progress, done, onFilled }: { progress: num
       aria-valuemax={100}
       aria-valuenow={pct}
       aria-label={content.loading.label}
-      className={`absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-[#080B18] transition-opacity duration-[1400ms] ease-out ${done ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
+      className={`absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-[#080B18] transition-opacity duration-[900ms] ease-out ${done ? 'pointer-events-none opacity-0' : 'opacity-100'}`}
       style={{ background: 'radial-gradient(60% 50% at 50% 45%, #111629, #080B18)' }}
     >
       <p className="font-serif text-[1.35rem] italic tracking-wide text-[#FFF1E5]/85">{content.loading.label}</p>

@@ -10,10 +10,11 @@ import { palette } from '../config/theme'
 export interface GlassUniforms {
   uReveal: { value: number }
   uGlow: { value: number }
+  uTime: { value: number }
 }
 
 export function createGlassMaterial(): { material: MeshPhysicalMaterial; uniforms: GlassUniforms } {
-  const uniforms: GlassUniforms = { uReveal: { value: 0 }, uGlow: { value: 0 } }
+  const uniforms: GlassUniforms = { uReveal: { value: 0 }, uGlow: { value: 0 }, uTime: { value: 0 } }
   const material = new MeshPhysicalMaterial({
     vertexColors: true,
     transparent: true,
@@ -35,8 +36,9 @@ export function createGlassMaterial(): { material: MeshPhysicalMaterial; uniform
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uReveal = uniforms.uReveal
     shader.uniforms.uGlow = uniforms.uGlow
+    shader.uniforms.uTime = uniforms.uTime
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform float uReveal;\nuniform float uGlow;')
+      .replace('#include <common>', '#include <common>\nuniform float uReveal;\nuniform float uGlow;\nuniform float uTime;')
       .replace(
         '#include <normal_fragment_maps>',
         `#include <normal_fragment_maps>
@@ -46,6 +48,9 @@ export function createGlassMaterial(): { material: MeshPhysicalMaterial; uniform
       .replace(
         '#include <opaque_fragment>',
         `outgoingLight += vec3(1.0, 0.72, 0.8) * petalFres * uGlow * 0.1;
+        // dải sáng chậm lướt qua các cánh: hoa luôn "sống" kể cả khi đã nở xong
+        float sweepS = sin((vViewPosition.x * 0.8 + vViewPosition.y * 0.55) * 2.4 - uTime * 0.8);
+        outgoingLight += vec3(1.0, 0.86, 0.9) * pow(max(sweepS, 0.0), 14.0) * (0.08 + 0.22 * petalFres) * uGlow;
         outgoingLight = min(outgoingLight, vec3(1.35));
         #include <opaque_fragment>`,
       )

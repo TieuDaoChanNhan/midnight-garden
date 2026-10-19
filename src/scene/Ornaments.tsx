@@ -70,6 +70,11 @@ export default function Ornaments({ state, count }: { state: SceneState; count: 
       scale: 0.38 + rnd() * 0.5,
       color: new Color(COLORS[i % COLORS.length]),
       delay: rnd() * 0.5,
+      // một nửa số cánh rơi chậm từ trên xuống rồi hiện lại ở trên (như cánh hoa rụng nhưng không bao giờ hết)
+      fall: i % 2 === 1,
+      fallSpeed: 0.1 + rnd() * 0.14,
+      fallOff: rnd() * 4.6,
+      sway: 0.2 + rnd() * 0.35,
     }))
     return { geometry: petal.geometry, material: g.material, uniforms: g.uniforms, items }
   }, [count])
@@ -107,15 +112,25 @@ export default function Ornaments({ state, count }: { state: SceneState; count: 
     const m = mesh.current
     uniforms.uReveal.value = state.reveal
     uniforms.uGlow.value = 0.3 + state.warm * 0.4
+    uniforms.uTime.value = t
     const show = smooth((state.bloom - 0.1) / 0.6) // hiện dần khi hoa nở
     const calm = reduced ? 0 : 1
     if (m) {
       items.forEach((it, i) => {
         const a = it.angle + t * it.speed * calm
         const k = smooth((show - it.delay) / (1 - it.delay + 0.001))
-        dummy.position.set(Math.cos(a) * it.radius, 0.3 + it.height + Math.sin(t * 0.5 + it.bob) * 0.08 * calm, Math.sin(a) * it.radius)
+        let y = 0.3 + it.height + Math.sin(t * 0.5 + it.bob) * 0.08 * calm
+        let fade = 1
+        let rad = it.radius
+        if (it.fall) {
+          const h = 2.5 - ((t * it.fallSpeed * calm + it.fallOff) % 4.6)
+          y = h
+          fade = smooth(Math.min(h + 2.0, 2.5 - h) / 0.6)
+          rad = it.radius + Math.sin(t * 0.6 + it.bob) * it.sway * calm
+        }
+        dummy.position.set(Math.cos(a) * rad, y, Math.sin(a) * rad)
         dummy.rotation.set(it.tumble[0] + t * it.spin[0] * calm, it.tumble[1] + t * it.spin[1] * calm, it.tumble[2] + t * it.spin[2] * calm)
-        dummy.scale.setScalar(it.scale * k * (0.6 + 0.4 * state.reveal))
+        dummy.scale.setScalar(it.scale * k * fade * (0.6 + 0.4 * state.reveal))
         dummy.updateMatrix()
         m.setMatrixAt(i, dummy.matrix)
       })
@@ -123,8 +138,8 @@ export default function Ornaments({ state, count }: { state: SceneState; count: 
     }
     if (rings.current) {
       rings.current.rotation.y = t * 0.05 * calm
-      ringMat.opacity = 0.2 * show
-      ringMat2.opacity = 0.15 * show
+      ringMat.opacity = 0.13 * show
+      ringMat2.opacity = 0.09 * show
     }
   })
 

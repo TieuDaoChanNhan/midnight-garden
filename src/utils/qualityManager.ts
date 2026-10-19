@@ -6,14 +6,18 @@ export interface TierSettings {
   dpr: number // trần device pixel ratio
   particles: number
   petals: number // số cánh hoa trang trí bay quanh
+  streams: number // số hạt mỗi dòng sáng xoắn
+  bokeh: number
+  rays: boolean // chùm sáng giả
+  sparkles: number // đốm lấp lánh trên mặt nước
   post: boolean
   bloomRes: number
 }
 
 export const TIERS: Record<Tier, TierSettings> = {
-  high: { nu: 28, nv: 26, dpr: 2, particles: 240, petals: 18, post: true, bloomRes: 1 },
-  medium: { nu: 20, nv: 16, dpr: 1.6, particles: 140, petals: 12, post: true, bloomRes: 0.5 },
-  low: { nu: 14, nv: 10, dpr: 1.25, particles: 70, petals: 6, post: false, bloomRes: 0.25 },
+  high: { nu: 28, nv: 26, dpr: 2, particles: 240, petals: 18, streams: 70, bokeh: 16, rays: true, sparkles: 48, post: true, bloomRes: 1 },
+  medium: { nu: 20, nv: 16, dpr: 1.6, particles: 140, petals: 12, streams: 46, bokeh: 10, rays: true, sparkles: 28, post: true, bloomRes: 0.5 },
+  low: { nu: 14, nv: 10, dpr: 1.25, particles: 70, petals: 6, streams: 28, bokeh: 6, rays: false, sparkles: 14, post: false, bloomRes: 0.25 },
 }
 
 // Đoán ban đầu một cách thận trọng; sau đó PerformanceMonitor sẽ hạ bậc nếu khung hình tụt.

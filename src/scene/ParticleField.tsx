@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import { AdditiveBlending, BufferAttribute, BufferGeometry, Points, ShaderMaterial } from 'three'
+import { useFrame } from '@react-three/fiber'
+import { BufferAttribute, BufferGeometry, Points } from 'three'
+import { createSparkMaterial, useSparkUniforms } from './sparkMaterial'
 import type { SceneState } from '../experience/ExperienceState'
 import { useReducedMotion } from '../rose/useReducedMotion'
 import { mulberry32 } from '../utils/seededRandom'
@@ -8,38 +9,10 @@ import { mulberry32 } from '../utils/seededRandom'
 // Bụi sáng lơ lửng (ambient) + một đợt hạt sáng bay ra khi hoa nở (spark).
 // Một draw call, buffer tái sử dụng, không cấp phát mỗi frame.
 
-const vert = /* glsl */ `
-  attribute float aSize;
-  attribute float aAlpha;
-  attribute vec3 aColor;
-  uniform float uPx;
-  varying float vAlpha;
-  varying vec3 vColor;
-  void main() {
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mv;
-    gl_PointSize = max(1.0, aSize * uPx / -mv.z);
-    vAlpha = aAlpha;
-    vColor = aColor;
-  }
-`
-const frag = /* glsl */ `
-  varying float vAlpha;
-  varying vec3 vColor;
-  uniform float uReveal;
-  void main() {
-    float d = length(gl_PointCoord - 0.5);
-    float a = smoothstep(0.5, 0.0, d);
-    a *= a;
-    gl_FragColor = vec4(mix(vec3(1.0), vColor, 0.75), a * vAlpha * uReveal);
-  }
-`
-
 const SPARK_LIFE = 4.2
 
 export default function ParticleField({ state, count }: { state: SceneState; count: number }) {
   const reduced = useReducedMotion()
-  const { gl, camera } = useThree()
   const ref = useRef<Points>(null)
   const nAmbient = Math.round(count * 0.62)
   const nSpark = count - nAmbient
@@ -79,18 +52,8 @@ export default function ParticleField({ state, count }: { state: SceneState; cou
     return g
   }, [data])
 
-  const material = useMemo(
-    () =>
-      new ShaderMaterial({
-        vertexShader: vert,
-        fragmentShader: frag,
-        transparent: true,
-        depthWrite: false,
-        blending: AdditiveBlending,
-        uniforms: { uPx: { value: 800 }, uReveal: { value: 0 } },
-      }),
-    [],
-  )
+  const material = useMemo(() => createSparkMaterial(), [])
+  useSparkUniforms(material, state)
   useEffect(
     () => () => {
       geometry.dispose()
@@ -104,9 +67,6 @@ export default function ParticleField({ state, count }: { state: SceneState; cou
   useFrame((s) => {
     const t = s.clock.elapsedTime
     const { base, seed, pos, size, alpha, vel, birth } = data
-    const fov = (camera as { fov?: number }).fov ?? 30
-    material.uniforms.uPx.value = gl.domElement.height / (2 * Math.tan((fov * Math.PI) / 360))
-    material.uniforms.uReveal.value = state.reveal
 
     // ambient: trôi nhẹ, lúc đầu "hút" về phía tâm rồi giãn ra
     const pull = 1 + (1 - state.reveal) * 0.9

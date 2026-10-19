@@ -7,6 +7,8 @@ import LightingRig from './LightingRig'
 import CameraRig from './CameraRig'
 import ParticleField from './ParticleField'
 import Ornaments from './Ornaments'
+import Base from './Base'
+import { BokehField, GodRays, SpiralStreams } from './Streams'
 import PostProcessing from './PostProcessing'
 import type { DebugFlags, SceneState } from '../experience/ExperienceState'
 import { TIERS, type Tier } from '../utils/qualityManager'
@@ -21,9 +23,9 @@ export interface SceneHandles {
 
 const offset = new Vector3()
 const GLOWS = [
-  { x: -2.3, y: 1.2, s: 6, c: palette.lavender, o: 0.2 },
-  { x: 2.6, y: -0.3, s: 6.5, c: palette.iceBlue, o: 0.15 },
-  { x: 0.8, y: 2.4, s: 4.5, c: palette.gold, o: 0.12 },
+  { x: -2.3, y: 1.2, s: 6, c: palette.lavender, o: 0.12 },
+  { x: 2.6, y: -0.3, s: 6.5, c: palette.iceBlue, o: 0.09 },
+  { x: 0.8, y: 2.4, s: 4.5, c: palette.gold, o: 0.08 },
 ]
 
 // Nền tối có gradient nhẹ + quầng sáng ấm phía sau bông hoa (luôn nằm sau hoa theo hướng nhìn).
@@ -134,6 +136,9 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
   }, [])
   const budget = Math.sqrt(4.4e6 / (vp.w * vp.h))
   const cappedDpr = Math.max(1, Math.min(dpr, budget))
+  useEffect(() => {
+    if (ready) setRunning(true)
+  }, [ready])
   const settled = () => readyAt.current > 0 && performance.now() - readyAt.current > 4000
 
   return (
@@ -178,24 +183,49 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
           // để mọi shader, buffer, texture đã được tải lên GPU trước khi người xem thấy gì.
           const snap = { ...state }
           Object.assign(state, { reveal: 1, bloom: 1, light: 1, warm: 1, camMix: 1, textShift: 1 })
+          for (let i = 0; i < 6; i++) {
+            rs.advance(performance.now() / 1000, true)
+            await nextFrame()
+            onProgress(0.6 + 0.2 * ((i + 1) / 6))
+          }
+
+          // Hiệu chỉnh theo máy: đo thời gian thật của một khung hình ở cảnh nặng nhất (hoa nở hết,
+          // mọi trang trí hiện). Nếu quá chậm thì giảm độ phân giải từng bước nhỏ (không bao giờ thấp
+          // hơn độ phân giải thật của màn hình) TRƯỚC khi người xem thấy cảnh, nên không bị giật lúc vào.
+          const ctx = gl.getContext()
+          const sample = async (n: number) => {
+            let sum = 0
+            for (let i = 0; i < n; i++) {
+              const t0 = performance.now()
+              rs.advance(t0 / 1000, true)
+              ctx.finish()
+              sum += performance.now() - t0
+              await nextFrame()
+            }
+            return sum / n
+          }
+          let ms = await sample(6)
+          for (let step = 0; step < 6 && ms > 17 && gl.getPixelRatio() > 1.01; step++) {
+            setDpr(Math.max(1, gl.getPixelRatio() * 0.88))
+            await nextFrame()
+            await nextFrame()
+            ms = await sample(5)
+            onProgress(0.8 + 0.1 * ((step + 1) / 6))
+          }
+          onProgress(0.9)
+
+          Object.assign(state, snap)
           for (let i = 0; i < 4; i++) {
             rs.advance(performance.now() / 1000, true)
             await nextFrame()
-            onProgress(0.6 + 0.3 * ((i + 1) / 4))
+            onProgress(0.9 + 0.1 * ((i + 1) / 4))
           }
-          Object.assign(state, snap)
-          for (let i = 0; i < 3; i++) {
-            rs.advance(performance.now() / 1000, true)
-            await nextFrame()
-            onProgress(0.9 + 0.1 * ((i + 1) / 3))
-          }
-          setRunning(true)
           if (group.current) onReady({ gl, scene, camera, group: group.current })
         })()
       }}
     >
       <PerformanceMonitor
-        onChange={({ factor }) => settled() && setDpr(Math.max(1.25, Math.round(settings.dpr * (0.8 + 0.2 * factor) * 20) / 20))}
+        onChange={({ factor }) => settled() && setDpr((prev) => Math.min(prev, Math.max(1.25, Math.round(settings.dpr * (0.8 + 0.2 * factor) * 20) / 20)))}
         onDecline={() => settled() && onDecline()}
         flipflops={3}
         onFallback={() => settled() && onDecline()}
@@ -206,6 +236,10 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         <Rose state={state} tier={settings} clay={debug.clay} debugBloom={debug.bloom} groupRef={group} onTap={onTap} />
         <ParticleField state={state} count={settings.particles} />
         <Ornaments state={state} count={settings.petals} />
+        <Base state={state} sparkles={settings.sparkles} />
+        <SpiralStreams state={state} perStrand={settings.streams} />
+        <BokehField state={state} count={settings.bokeh} />
+        {settings.rays && <GodRays state={state} />}
         {settings.post && debug.post && <PostProcessing resolution={settings.bloomRes} />}
       </PerformanceMonitor>
     </Canvas>
