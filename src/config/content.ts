@@ -7,19 +7,19 @@ export const content = {
 
   intro: {
     line1: 'apn ơi,',
-    line2: 'có một thứ nho nhỏ dành cho cậu.',
+    line2: 'có một thứ nho nhỏ dành cho apn.',
     cta: 'chạm vào bông hoa nhé ✦',
   },
 
   greeting: {
     main: '20/10 vui vẻ nha apn.',
-    body: 'chúc cậu luôn có thật nhiều niềm vui, những ngày thật nhẹ nhàng, và thật nhiều điều dễ thương ghé qua.',
+    body: 'chúc apn luôn có nhiều niềm vui, ngày càng xinh đẹp hơn, giỏi giang hơn và một ngày nào đó tràn ngập niềm vui.',
     closing: 'hoa thật rồi sẽ héo, còn bông này thì không hehe.',
   },
 
   loading: {
     label: 'đang chuẩn bị món quà...',
-    s1: 'đang dựng bông hoa',
+    s1: 'đang dựng cảnh',
     s2: 'đang biên dịch hiệu ứng ánh sáng',
     s3: 'đang khởi động cảnh',
     s4: 'đang hiệu chỉnh cho máy của bạn',

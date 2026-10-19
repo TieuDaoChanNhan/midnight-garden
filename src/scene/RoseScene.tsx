@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { PerformanceMonitor } from '@react-three/drei'
 import { Vector3, ACESFilmicToneMapping, type Material, type Mesh, type Object3D, AdditiveBlending, CanvasTexture, Group, Scene, SRGBColorSpace, Sprite, WebGLRenderer, type Camera } from 'three'
 import Rose from '../rose/Rose'
 import LightingRig from './LightingRig'
@@ -109,13 +108,13 @@ interface Props {
   debug: DebugFlags
   onReady: (h: SceneHandles) => void
   onTap: () => void
-  onDecline: () => void
   ready: boolean
+  live: boolean
   onProgress: (p: number) => void
   onDowngrade: (ms: number) => void
 }
 
-export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline, ready, onProgress, onDowngrade }: Props) {
+export default function RoseScene({ state, tier, debug, onReady, onTap, ready, live, onProgress, onDowngrade }: Props) {
   const settings = TIERS[tier]
   // chỉ chạy vòng lặp render sau khi khởi động xong (trong lúc tải, thanh tiến trình được mượt)
   const [running, setRunning] = useState(false)
@@ -123,11 +122,6 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
   const [dpr, setDpr] = useState(settings.dpr)
   useEffect(() => setDpr(settings.dpr), [settings.dpr])
   const group = useRef<Group>(null)
-  // bỏ qua đo FPS trong lúc khởi động (jank do biên dịch shader không phải do máy yếu)
-  const readyAt = useRef(0)
-  useEffect(() => {
-    if (ready) readyAt.current = performance.now()
-  }, [ready])
   // trần độ phân giải theo ngân sách điểm ảnh, không bao giờ thấp hơn độ phân giải thật của màn hình
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
   useEffect(() => {
@@ -135,12 +129,11 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
     window.addEventListener('resize', on)
     return () => window.removeEventListener('resize', on)
   }, [])
-  const budget = Math.sqrt(4.4e6 / (vp.w * vp.h))
+  const budget = Math.sqrt(7e6 / (vp.w * vp.h))
   const cappedDpr = Math.max(1, Math.min(dpr, budget))
   useEffect(() => {
-    if (ready) setRunning(true)
-  }, [ready])
-  const settled = () => readyAt.current > 0 && performance.now() - readyAt.current > 4000
+    if (live) setRunning(true)
+  }, [live])
 
   return (
     <Canvas
@@ -205,22 +198,29 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
             }
             return sum / n
           }
-          let ms = await sample(6)
-          for (let step = 0; step < 6 && ms > 17 && gl.getPixelRatio() > 1.01; step++) {
-            setDpr(Math.max(1, gl.getPixelRatio() * 0.88))
+          let ms = await sample(8)
+          // Ưu tiên giữ độ nét: chỉ hạ độ phân giải tới 1.5x
+          for (let step = 0; step < 8 && ms > 18 && gl.getPixelRatio() > 1.55; step++) {
+            setDpr(Math.max(1.5, gl.getPixelRatio() * 0.9))
             await nextFrame()
             await nextFrame()
-            ms = await sample(5)
-            onProgress(0.8 + 0.1 * ((step + 1) / 6))
+            ms = await sample(6)
+            onProgress(0.8 + 0.06 * ((step + 1) / 8))
           }
-          onProgress(0.9)
-
-          // Vẫn chậm dù đã hạ độ phân giải hết cỡ: hạ độ nặng của cảnh (bậc chất lượng) rồi khởi động lại
-          if (ms > 22 && tier !== 'lite' && !debug.tier) {
+          // Vẫn chậm: hạ độ nặng của cảnh (bậc chất lượng) rồi khởi động lại ở độ nét tối đa của bậc mới
+          if (ms > 18 && tier !== 'lite' && !debug.tier) {
             Object.assign(state, snap)
             onDowngrade(ms)
             return
           }
+          // Bậc thấp nhất: đành chấp nhận hạ độ phân giải xuống 1x
+          for (let step = 0; step < 8 && ms > 18 && gl.getPixelRatio() > 1.01; step++) {
+            setDpr(Math.max(1, gl.getPixelRatio() * 0.9))
+            await nextFrame()
+            await nextFrame()
+            ms = await sample(6)
+          }
+          onProgress(0.9)
 
           Object.assign(state, snap)
           for (let i = 0; i < 4; i++) {
@@ -232,12 +232,7 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         })()
       }}
     >
-      <PerformanceMonitor
-        onChange={({ factor }) => settled() && setDpr((prev) => Math.min(prev, Math.max(1.25, Math.round(settings.dpr * (0.8 + 0.2 * factor) * 20) / 20)))}
-        onDecline={() => settled() && onDecline()}
-        flipflops={3}
-        onFallback={() => settled() && onDecline()}
-      >
+      <>
         <Backdrop state={state} />
         <LightingRig state={state} />
         <CameraRig state={state} initialView={debug.view} initialPhi={debug.phi} />
@@ -248,8 +243,8 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         {settings.streams > 0 && <SpiralStreams state={state} perStrand={settings.streams} />}
         {settings.bokeh > 0 && <BokehField state={state} count={settings.bokeh} />}
         {settings.rays && <GodRays state={state} />}
-        {settings.post && debug.post && <PostProcessing resolution={settings.bloomRes} />}
-      </PerformanceMonitor>
+        {settings.post && debug.post && <PostProcessing resolution={settings.bloomRes} msaa={settings.msaa} />}
+      </>
     </Canvas>
   )
 }

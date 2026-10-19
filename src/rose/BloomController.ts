@@ -1,4 +1,4 @@
-import type { Camera } from 'three'
+import type { Camera, Object3D } from 'three'
 import { Vector3 } from 'three'
 import { PetalSurface, smootherstep } from './RoseGeometry'
 import type { RoseParams } from './RoseParameters'
@@ -7,6 +7,7 @@ import type { RoseParams } from './RoseParameters'
 // sắp xếp thứ tự vẽ từ xa đến gần để lớp thủy tinh chồng lên nhau đúng.
 
 export interface SortItem {
+  group: Object3D // đối tượng cha để đổi centroid sang toạ độ thế giới
   centroid: Vector3
   dist: number
   apply: (rank: number) => void
@@ -38,10 +39,10 @@ export class BloomController {
 
 const tmp = new Vector3()
 /** Gán renderOrder theo khoảng cách tới camera (xa vẽ trước). */
-export function sortByDistance(items: SortItem[], camera: Camera, toWorld: (v: Vector3) => Vector3) {
+export function sortByDistance(items: SortItem[], camera: Camera) {
   for (const it of items) {
     tmp.copy(it.centroid)
-    toWorld(tmp)
+    it.group.localToWorld(tmp)
     it.dist = tmp.distanceToSquared(camera.position)
   }
   items.sort((a, b) => b.dist - a.dist)

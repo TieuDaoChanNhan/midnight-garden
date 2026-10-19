@@ -86,8 +86,8 @@ export default function CameraRig({ state, initialView, initialPhi }: { state: S
     r.vPhi *= damp
 
     const m = ease(state.camMix)
-    const dBud = fit(aspect, 1.05, 1.5)
-    const dOpen = aspect < 0.9 ? fit(aspect, 1.32, 1.55) : fit(aspect, 2.15, 1.62)
+    const dBud = fit(aspect, 1.55, 1.55)
+    const dOpen = aspect < 0.9 ? fit(aspect, 1.85, 1.75) : fit(aspect, 2.5, 1.7)
     const dist = dBud + (dOpen - dBud) * m
     const ty = 0.62 + (0.4 - 0.62) * m
 

@@ -25,6 +25,7 @@ export default function Experience() {
   const [tier, setTier] = useState<Tier>(() => debug.tier ?? detectInitialTier())
   const [saveState, setSaveState] = useState<'idle' | 'working' | 'done'>('idle')
   const [booted, setBooted] = useState(false)
+  const [live, setLive] = useState(false) // vòng lặp vẽ chạy ngầm sau màn hình chờ để mọi thứ ổn định trước khi lộ ra
   const [optimizing, setOptimizing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [manualImg, setManualImg] = useState<string | null>(null)
@@ -43,6 +44,7 @@ export default function Experience() {
   const onReady = useCallback((h: SceneHandles) => {
     handles.current = h
     setProgress(1)
+    setLive(true)
     if (import.meta.env.DEV) (window as unknown as { __handles: SceneHandles }).__handles = h
   }, [])
 
@@ -137,11 +139,10 @@ export default function Experience() {
     })
   }, [])
 
-  const onDecline = useCallback(() => setTier((t) => (debug.tier ? t : lowerTier(t))), [debug.tier])
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#080B18]">
-      <RoseScene key={tier} state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} ready={booted} onProgress={setProgress} onDowngrade={onDowngrade} />
+      <RoseScene key={tier} state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} ready={booted} live={live} onProgress={setProgress} onDowngrade={onDowngrade} />
 
       <LoadingBar progress={progress} done={booted} onFilled={start} optimizing={optimizing} />
 

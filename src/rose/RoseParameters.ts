@@ -40,11 +40,11 @@ export interface RoseParams {
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
 
-export function createRoseParams(nickname: string): RoseParams {
+export function createRoseParams(nickname: string, count?: number): RoseParams {
   const seed = hashString(nickname)
   const rng = mulberry32(seed)
 
-  const N = 40 + Math.floor(rng() * 5) // 40..44 cánh xoắn ốc
+  const N = count ?? 40 + Math.floor(rng() * 5) // 40..44 cánh xoắn ốc (hoặc số cánh chỉ định cho bông phụ)
   const phase = rng() * Math.PI * 2
   const petals: PetalSpec[] = []
 
