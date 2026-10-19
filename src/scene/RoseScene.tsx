@@ -253,7 +253,7 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, ready, l
             }
             return sum / n
           }
-          const TARGET = 11
+          const TARGET = 15
           let ms = await sample(8)
           const k = { msaa: settings.msaa, bloom: settings.bloomRes, dpr: gl.getPixelRatio() }
           const apply = async () => {
