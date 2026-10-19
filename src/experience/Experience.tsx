@@ -14,6 +14,10 @@ import { useReducedMotion } from '../rose/useReducedMotion'
 export default function Experience() {
   const state = useRef(createSceneState()).current
   const debug = useMemo(readDebugFlags, [])
+  // GSAP mặc định làm hoạt ảnh chạy chậm theo khi máy giật; tắt để mọi thứ luôn kịp thời gian thật
+  useEffect(() => {
+    gsap.ticker.lagSmoothing(0)
+  }, [])
   const reduced = useReducedMotion()
   const speed = reduced ? 0.45 : 1
 
@@ -21,6 +25,7 @@ export default function Experience() {
   const [tier, setTier] = useState<Tier>(() => debug.tier ?? detectInitialTier())
   const [saveState, setSaveState] = useState<'idle' | 'working' | 'done'>('idle')
   const [booted, setBooted] = useState(false)
+  const [optimizing, setOptimizing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [manualImg, setManualImg] = useState<string | null>(null)
   const handles = useRef<SceneHandles | null>(null)
@@ -48,7 +53,7 @@ export default function Experience() {
         Object.assign(state, { reveal: 1, light: 0.3, warm: 0.5, bloom: debug.bloom, camMix: debug.bloom, textShift: 1 })
         return
       }
-      gsap.to(state, { reveal: 1, duration: 3.6 * speed, ease: 'power2.out' })
+      gsap.to(state, { reveal: 1, duration: 2.2 * speed, ease: 'power2.out' })
       gsap.to(state, { light: 0.16, duration: 3.6 * speed, ease: 'sine.inOut' })
       gsap.delayedCall(3.1 * speed, () => {
         if (phaseRef.current === 'emerge') {
@@ -120,13 +125,25 @@ export default function Experience() {
     }
   }, [saveState])
 
+  // Khi bước hiệu chỉnh lúc tải thấy máy vẫn chậm: hạ một bậc chất lượng rồi dựng lại cảnh (màn hình chờ vẫn còn)
+  const onDowngrade = useCallback((ms: number) => {
+    setOptimizing(true)
+    // càng chậm thì nhảy càng nhiều bậc để khỏi phải khởi động lại nhiều lần
+    setTier((t) => {
+      let n = lowerTier(t)
+      if (ms > 45) n = lowerTier(n)
+      if (ms > 90) n = lowerTier(n)
+      return n
+    })
+  }, [])
+
   const onDecline = useCallback(() => setTier((t) => (debug.tier ? t : lowerTier(t))), [debug.tier])
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#080B18]">
-      <RoseScene state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} ready={booted} onProgress={setProgress} />
+      <RoseScene key={tier} state={state} tier={tier} debug={debug} onReady={onReady} onTap={bloom} onDecline={onDecline} ready={booted} onProgress={setProgress} onDowngrade={onDowngrade} />
 
-      <LoadingBar progress={progress} done={booted} onFilled={start} />
+      <LoadingBar progress={progress} done={booted} onFilled={start} optimizing={optimizing} />
 
       {/* nút ẩn cho bàn phím / trình đọc màn hình */}
       <button type="button" onClick={bloom} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:text-[#F2B7D5]">

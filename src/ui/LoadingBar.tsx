@@ -3,7 +3,7 @@ import { content } from '../config/content'
 
 // Màn hình chờ: thanh tiến trình thật (đếm theo từng bước biên dịch shader).
 // Chỉ mờ đi khi đạt 100%, để lúc vào xem không bị khựng.
-export default function LoadingBar({ progress, done, onFilled }: { progress: number; done: boolean; onFilled: () => void }) {
+export default function LoadingBar({ progress, done, onFilled, optimizing }: { progress: number; done: boolean; onFilled: () => void; optimizing: boolean }) {
   // Số hiển thị đuổi theo tiến độ thật một cách đều đặn (tối thiểu ~2.5s) nên thanh luôn chạy rõ ràng,
   // và chỉ báo "đủ 100%" khi tiến độ thật đã xong.
   const [shown, setShown] = useState(0)
@@ -34,6 +34,8 @@ export default function LoadingBar({ progress, done, onFilled }: { progress: num
     }
   }, [shown, progress, onFilled])
   const pct = Math.round(Math.min(1, Math.max(0, shown)) * 100)
+  const L = content.loading
+  const stage = optimizing ? L.optimizing : shown < 0.35 ? L.s1 : shown < 0.6 ? L.s2 : shown < 0.8 ? L.s3 : shown < 0.97 ? L.s4 : L.s5
   return (
     <div
       role="progressbar"
@@ -45,6 +47,7 @@ export default function LoadingBar({ progress, done, onFilled }: { progress: num
       style={{ background: 'radial-gradient(60% 50% at 50% 45%, #111629, #080B18)' }}
     >
       <p className="font-serif text-[1.35rem] italic tracking-wide text-[#FFF1E5]/85">{content.loading.label}</p>
+      <p className="-mt-2 text-[0.78rem] font-light tracking-wide text-[#FFF1E5]/50">{stage}</p>
       <div className="h-[2px] w-[min(62vw,260px)] overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full w-full origin-left rounded-full bg-gradient-to-r from-[#B8A4EE] via-[#F2B7D5] to-[#FFF1E5]"

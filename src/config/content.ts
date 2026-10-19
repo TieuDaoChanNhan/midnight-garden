@@ -18,7 +18,13 @@ export const content = {
   },
 
   loading: {
-    label: 'đang chuẩn bị bông hoa...',
+    label: 'đang chuẩn bị món quà...',
+    s1: 'đang dựng bông hoa',
+    s2: 'đang biên dịch hiệu ứng ánh sáng',
+    s3: 'đang khởi động cảnh',
+    s4: 'đang hiệu chỉnh cho máy của bạn',
+    s5: 'sắp xong rồi',
+    optimizing: 'máy hơi chậm, đang tối ưu lại cho mượt...',
   },
 
   controls: {

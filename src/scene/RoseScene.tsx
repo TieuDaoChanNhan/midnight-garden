@@ -112,9 +112,10 @@ interface Props {
   onDecline: () => void
   ready: boolean
   onProgress: (p: number) => void
+  onDowngrade: (ms: number) => void
 }
 
-export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline, ready, onProgress }: Props) {
+export default function RoseScene({ state, tier, debug, onReady, onTap, onDecline, ready, onProgress, onDowngrade }: Props) {
   const settings = TIERS[tier]
   // chỉ chạy vòng lặp render sau khi khởi động xong (trong lúc tải, thanh tiến trình được mượt)
   const [running, setRunning] = useState(false)
@@ -214,6 +215,13 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
           }
           onProgress(0.9)
 
+          // Vẫn chậm dù đã hạ độ phân giải hết cỡ: hạ độ nặng của cảnh (bậc chất lượng) rồi khởi động lại
+          if (ms > 22 && tier !== 'lite' && !debug.tier) {
+            Object.assign(state, snap)
+            onDowngrade(ms)
+            return
+          }
+
           Object.assign(state, snap)
           for (let i = 0; i < 4; i++) {
             rs.advance(performance.now() / 1000, true)
@@ -235,10 +243,10 @@ export default function RoseScene({ state, tier, debug, onReady, onTap, onDeclin
         <CameraRig state={state} initialView={debug.view} initialPhi={debug.phi} />
         <Rose state={state} tier={settings} clay={debug.clay} debugBloom={debug.bloom} groupRef={group} onTap={onTap} />
         <ParticleField state={state} count={settings.particles} />
-        <Ornaments state={state} count={settings.petals} />
-        <Base state={state} sparkles={settings.sparkles} />
-        <SpiralStreams state={state} perStrand={settings.streams} />
-        <BokehField state={state} count={settings.bokeh} />
+        {settings.petals > 0 && <Ornaments state={state} count={settings.petals} />}
+        {settings.sparkles > 0 && <Base state={state} sparkles={settings.sparkles} />}
+        {settings.streams > 0 && <SpiralStreams state={state} perStrand={settings.streams} />}
+        {settings.bokeh > 0 && <BokehField state={state} count={settings.bokeh} />}
         {settings.rays && <GodRays state={state} />}
         {settings.post && debug.post && <PostProcessing resolution={settings.bloomRes} />}
       </PerformanceMonitor>
